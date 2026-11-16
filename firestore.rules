@@ -1,0 +1,543 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: default deny everything
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitive Helpers ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isBootstrapAdmin() {
+      return isSignedIn() && request.auth.token.email == 'mralmnjd363@gmail.com';
+    }
+
+    function hasUserDoc() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isActiveStaff() {
+      return isBootstrapAdmin() || (isSignedIn() && hasUserDoc() && userDoc().isActive == true);
+    }
+
+    function isAdmin() {
+      return isBootstrapAdmin() || (
+        isSignedIn() &&
+        hasUserDoc() &&
+        userDoc().isActive == true &&
+        userDoc().role == 'ADMIN'
+      );
+    }
+
+    function isSupervisor() {
+      return isAdmin() || (
+        isSignedIn() &&
+        hasUserDoc() &&
+        userDoc().isActive == true &&
+        userDoc().role == 'SUPERVISOR'
+      );
+    }
+
+    function isOperator() {
+      return isSupervisor() || (
+        isSignedIn() &&
+        hasUserDoc() &&
+        userDoc().isActive == true &&
+        userDoc().role == 'OPERATOR'
+      );
+    }
+
+    function isWorker() {
+      return isSignedIn() &&
+        hasUserDoc() &&
+        userDoc().isActive == true &&
+        userDoc().role in ['WORKER', 'MAINTENANCE'];
+    }
+
+    // --- Validation Helpers ---
+    function isValidUser(data, userId) {
+      return data.keys().hasAll(['uid', 'fullName', 'email', 'role', 'isActive', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'fullName', 'email', 'role', 'isActive', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == userId && isValidId(data.uid)
+        && data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 120
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 200
+        && data.role in ['ADMIN', 'SUPERVISOR', 'OPERATOR', 'MAINTENANCE', 'WORKER', 'PENDING']
+        && data.isActive is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidStaffDirectory(data, userId) {
+      return data.keys().hasAll(['uid', 'fullName', 'role', 'isActive', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'fullName', 'role', 'isActive', 'updatedAt'])
+        && data.uid is string && data.uid == userId && isValidId(data.uid)
+        && data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 120
+        && data.role in ['ADMIN', 'SUPERVISOR', 'OPERATOR', 'MAINTENANCE', 'WORKER', 'PENDING']
+        && data.isActive is bool
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPark(data, parkId) {
+      return data.keys().hasAll(['id', 'name', 'description', 'location', 'status', 'createdAt'])
+        && data.keys().hasOnly(['id', 'name', 'description', 'location', 'status', 'createdAt', 'updatedAt'])
+        && data.id is string && data.id == parkId && isValidId(data.id)
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 160
+        && data.description is string && data.description.size() <= 1000
+        && data.location is string && data.location.size() >= 2 && data.location.size() <= 240
+        && data.status in ['ACTIVE', 'MAINTENANCE', 'INACTIVE']
+        && data.createdAt is timestamp
+        && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidBin(data, binId) {
+      return data.keys().hasAll([
+          'id', 'parkId', 'name', 'binType', 'capacityLiters', 'status',
+          'currentFillPercentage', 'emptyDistanceCm', 'fullDistanceCm',
+          'locationDescription', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'parkId', 'name', 'binType', 'capacityLiters', 'status',
+          'currentFillPercentage', 'lastDistanceCm', 'emptyDistanceCm', 'fullDistanceCm',
+          'lastReadingAt', 'lastReadingSource', 'deviceId', 'locationDescription',
+          'createdAt', 'updatedAt'
+        ])
+        && data.id is string && data.id == binId && isValidId(data.id)
+        && isValidId(data.parkId)
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 160
+        && data.binType in ['GENERAL', 'RECYCLABLE', 'ORGANIC']
+        && data.capacityLiters is number && data.capacityLiters > 0 && data.capacityLiters <= 5000
+        && data.status in ['NORMAL', 'WARNING', 'CRITICAL', 'FULL', 'OFFLINE', 'MAINTENANCE']
+        && data.currentFillPercentage is number && data.currentFillPercentage >= 0 && data.currentFillPercentage <= 100
+        && (!('lastDistanceCm' in data) || (data.lastDistanceCm is number && data.lastDistanceCm >= 0 && data.lastDistanceCm <= 600))
+        && data.emptyDistanceCm is number && data.emptyDistanceCm > 0 && data.emptyDistanceCm <= 500
+        && data.fullDistanceCm is number && data.fullDistanceCm >= 0 && data.fullDistanceCm < data.emptyDistanceCm
+        && (!('lastReadingAt' in data) || data.lastReadingAt is timestamp)
+        && (!('lastReadingSource' in data) || data.lastReadingSource in ['HARDWARE', 'DEMO'])
+        && (!('deviceId' in data) || isValidId(data.deviceId))
+        && data.locationDescription is string && data.locationDescription.size() <= 300
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidDevice(data, deviceId) {
+      return data.keys().hasAll([
+          'id', 'name', 'deviceType', 'binId', 'parkId',
+          'connectionStatus', 'firmwareVersion', 'isActive', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'name', 'deviceType', 'sensorModel', 'binId', 'parkId',
+          'connectionStatus', 'firmwareVersion', 'lastSeenAt', 'lastSignalStrength',
+          'lastSequenceNumber', 'reportingIntervalSeconds',
+          'queuedReadingsCount', 'overflowDroppedCount', 'lastPowerResetReason', 'networkType',
+          'isActive', 'createdAt', 'updatedAt'
+        ])
+        && data.id is string && data.id == deviceId && isValidId(data.id)
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 160
+        && data.deviceType is string && data.deviceType.size() >= 2 && data.deviceType.size() <= 80
+        && (!('sensorModel' in data) || (data.sensorModel is string && data.sensorModel.size() <= 80))
+        && isValidId(data.binId)
+        && isValidId(data.parkId)
+        && data.connectionStatus in ['ONLINE', 'OFFLINE', 'NEVER_CONNECTED']
+        && data.firmwareVersion is string && data.firmwareVersion.size() >= 1 && data.firmwareVersion.size() <= 40
+        && (!('lastSeenAt' in data) || data.lastSeenAt is timestamp)
+        && (!('lastSignalStrength' in data) || (data.lastSignalStrength is number && data.lastSignalStrength >= -130 && data.lastSignalStrength <= 0))
+        && (!('lastSequenceNumber' in data) || (data.lastSequenceNumber is number && data.lastSequenceNumber >= 0))
+        && (!('reportingIntervalSeconds' in data) || (data.reportingIntervalSeconds is number && data.reportingIntervalSeconds >= 5 && data.reportingIntervalSeconds <= 86400))
+        && (!('queuedReadingsCount' in data) || (data.queuedReadingsCount is number && data.queuedReadingsCount >= 0 && data.queuedReadingsCount <= 10000))
+        && (!('overflowDroppedCount' in data) || (data.overflowDroppedCount is number && data.overflowDroppedCount >= 0))
+        && (!('lastPowerResetReason' in data) || (data.lastPowerResetReason is string && data.lastPowerResetReason.size() <= 64))
+        && (!('networkType' in data) || (data.networkType is string && data.networkType.size() <= 64))
+        && data.isActive is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSensorReading(data, readingId) {
+      return data.keys().hasAll([
+          'id', 'deviceId', 'binId', 'distanceCm', 'fillPercentage',
+          'signalStrength', 'sequenceNumber', 'measuredAt', 'receivedAt',
+          'source', 'qualityStatus'
+        ])
+        && data.keys().hasOnly([
+          'id', 'deviceId', 'binId', 'distanceCm', 'fillPercentage',
+          'signalStrength', 'sequenceNumber', 'measuredAt', 'receivedAt',
+          'source', 'qualityStatus'
+        ])
+        && data.id is string && data.id == readingId && isValidId(data.id)
+        && isValidId(data.deviceId)
+        && isValidId(data.binId)
+        && data.distanceCm is number && data.distanceCm >= 0 && data.distanceCm <= 600
+        && data.fillPercentage is number && data.fillPercentage >= 0 && data.fillPercentage <= 100
+        && data.signalStrength is number && data.signalStrength >= -130 && data.signalStrength <= 0
+        && data.sequenceNumber is number && data.sequenceNumber >= 0
+        && data.measuredAt is timestamp
+        && data.receivedAt is timestamp
+        && data.source in ['HARDWARE', 'DEMO']
+        && data.qualityStatus in ['VALID', 'FILTERED', 'OUT_OF_RANGE', 'INVALID'];
+    }
+
+    function isValidAlert(data, alertId) {
+      return data.keys().hasAll(['id', 'binId', 'deviceId', 'type', 'severity', 'message', 'status', 'createdAt'])
+        && data.keys().hasOnly([
+          'id', 'binId', 'deviceId', 'type', 'severity', 'message', 'status',
+          'source', 'createdAt', 'acknowledgedAt', 'acknowledgedBy', 'resolvedAt'
+        ])
+        && data.id is string && data.id == alertId && isValidId(data.id)
+        && isValidId(data.binId)
+        && isValidId(data.deviceId)
+        && data.type in ['BIN_80_PERCENT', 'BIN_FULL', 'DEVICE_OFFLINE', 'SENSOR_ERROR', 'SENSOR_READING_INVALID']
+        && data.severity in ['WARNING', 'CRITICAL', 'INFO']
+        && data.message is string && data.message.size() >= 3 && data.message.size() <= 400
+        && data.status in ['ACTIVE', 'ACKNOWLEDGED', 'RESOLVED']
+        && (!('source' in data) || data.source in ['HARDWARE', 'DEMO'])
+        && data.createdAt is timestamp
+        && (!('acknowledgedAt' in data) || data.acknowledgedAt is timestamp)
+        && (!('acknowledgedBy' in data) || (data.acknowledgedBy is string && data.acknowledgedBy.size() <= 128))
+        && (!('resolvedAt' in data) || data.resolvedAt is timestamp);
+    }
+
+    function isValidCitizenReport(data, reportId) {
+      return data.keys().hasAll([
+          'id', 'parkId', 'reportType', 'title', 'description',
+          'locationDescription', 'status', 'priority', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'parkId', 'reportType', 'title', 'description',
+          'locationDescription', 'imageUrl', 'imageUrls', 'trackingCode',
+          'reporterName', 'reporterContact', 'status', 'priority',
+          'assignedTo', 'assignedTeam', 'internalNotes', 'statusHistory',
+          'createdAt', 'updatedAt', 'resolvedAt', 'closedAt'
+        ])
+        && data.id is string && data.id == reportId && isValidId(data.id)
+        && isValidId(data.parkId)
+        && data.reportType in ['FULL_BIN', 'PLAYGROUND_DAMAGE', 'RESTROOM_ISSUE', 'BROKEN_EQUIPMENT', 'PARK_CLEANLINESS', 'DAMAGED_BENCH', 'LIGHTING_PROBLEM', 'OTHER']
+        && data.title is string && data.title.size() >= 3 && data.title.size() <= 160
+        && data.description is string && data.description.size() >= 5 && data.description.size() <= 2000
+        && data.locationDescription is string && data.locationDescription.size() >= 2 && data.locationDescription.size() <= 300
+        && (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500))
+        && (!('imageUrls' in data) || (data.imageUrls is list && data.imageUrls.size() <= 6))
+        && (!('trackingCode' in data) || (data.trackingCode is string && data.trackingCode.size() <= 16))
+        && (!('reporterName' in data) || (data.reporterName is string && data.reporterName.size() <= 120))
+        && (!('reporterContact' in data) || (data.reporterContact is string && data.reporterContact.size() <= 160))
+        && data.status in ['NEW', 'UNDER_REVIEW', 'ACCEPTED', 'REJECTED', 'CONVERTED_TO_TASK', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']
+        && data.priority in ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
+        && (!('assignedTo' in data) || isValidId(data.assignedTo))
+        && (!('assignedTeam' in data) || (data.assignedTeam is string && data.assignedTeam.size() <= 120))
+        && (!('internalNotes' in data) || (data.internalNotes is string && data.internalNotes.size() <= 2000))
+        && (!('statusHistory' in data) || (data.statusHistory is list && data.statusHistory.size() <= 40))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && (!('resolvedAt' in data) || data.resolvedAt is timestamp)
+        && (!('closedAt' in data) || data.closedAt is timestamp);
+    }
+
+    function isValidMaintenanceTask(data, taskId) {
+      return data.keys().hasAll(['id', 'parkId', 'title', 'description', 'priority', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'reportId', 'parkId', 'binId', 'assignedTo', 'assignedTeam',
+          'locationDescription', 'title', 'description', 'completionNotes',
+          'afterImageUrl', 'scheduledFor', 'priority', 'status',
+          'createdAt', 'updatedAt', 'completedAt'
+        ])
+        && data.id is string && data.id == taskId && isValidId(data.id)
+        && (!('reportId' in data) || isValidId(data.reportId))
+        && isValidId(data.parkId)
+        && (!('binId' in data) || isValidId(data.binId))
+        && (!('assignedTo' in data) || isValidId(data.assignedTo))
+        && (!('assignedTeam' in data) || (data.assignedTeam is string && data.assignedTeam.size() <= 120))
+        && (!('locationDescription' in data) || (data.locationDescription is string && data.locationDescription.size() <= 300))
+        && data.title is string && data.title.size() >= 3 && data.title.size() <= 160
+        && data.description is string && data.description.size() <= 2000
+        && (!('completionNotes' in data) || (data.completionNotes is string && data.completionNotes.size() <= 1000))
+        && (!('afterImageUrl' in data) || (data.afterImageUrl is string && data.afterImageUrl.size() <= 500))
+        && (!('scheduledFor' in data) || data.scheduledFor is timestamp)
+        && data.priority in ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
+        && data.status in ['PENDING', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && (!('completedAt' in data) || data.completedAt is timestamp);
+    }
+
+    function isValidNotification(data, notifId) {
+      return data.keys().hasAll(['id', 'type', 'title', 'message', 'targetRoles', 'isRead', 'createdAt'])
+        && data.keys().hasOnly([
+          'id', 'type', 'title', 'message', 'targetRoles', 'targetUid',
+          'relatedCollection', 'relatedId', 'isRead', 'readBy', 'createdAt', 'readAt'
+        ])
+        && data.id is string && data.id == notifId && isValidId(data.id)
+        && data.type in ['NEW_REPORT', 'BIN_HIGH_FILL', 'SENSOR_OFFLINE', 'TASK_ASSIGNED', 'REPORT_STATUS_UPDATED']
+        && data.title is string && data.title.size() >= 2 && data.title.size() <= 180
+        && data.message is string && data.message.size() >= 2 && data.message.size() <= 500
+        && data.targetRoles is list && data.targetRoles.size() >= 1 && data.targetRoles.size() <= 10
+        && (!('targetUid' in data) || isValidId(data.targetUid))
+        && (!('relatedCollection' in data) || (data.relatedCollection is string && data.relatedCollection.size() <= 80))
+        && (!('relatedId' in data) || isValidId(data.relatedId))
+        && data.isRead is bool
+        && (!('readBy' in data) || (data.readBy is list && data.readBy.size() <= 100))
+        && data.createdAt is timestamp
+        && (!('readAt' in data) || data.readAt is timestamp);
+    }
+
+    function isValidSystemConfig(data, configId) {
+      return data.keys().hasAll([
+          'id', 'operatingMode', 'warningThresholdPercent', 'criticalThresholdPercent',
+          'defaultReportingIntervalSeconds', 'offlineTimeoutSeconds',
+          'defaultEmptyDistanceCm', 'defaultFullDistanceCm', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'operatingMode', 'warningThresholdPercent', 'criticalThresholdPercent',
+          'defaultReportingIntervalSeconds', 'offlineTimeoutSeconds',
+          'defaultEmptyDistanceCm', 'defaultFullDistanceCm', 'updatedAt', 'updatedBy'
+        ])
+        && data.id is string && data.id == configId && isValidId(data.id)
+        && data.operatingMode in ['DEMO', 'HARDWARE']
+        && data.warningThresholdPercent is number && data.warningThresholdPercent >= 50 && data.warningThresholdPercent <= 95
+        && data.criticalThresholdPercent is number && data.criticalThresholdPercent > data.warningThresholdPercent && data.criticalThresholdPercent <= 100
+        && data.defaultReportingIntervalSeconds is number && data.defaultReportingIntervalSeconds >= 5 && data.defaultReportingIntervalSeconds <= 86400
+        && data.offlineTimeoutSeconds is number && data.offlineTimeoutSeconds >= 15 && data.offlineTimeoutSeconds <= 86400
+        && data.defaultEmptyDistanceCm is number && data.defaultEmptyDistanceCm > 0 && data.defaultEmptyDistanceCm <= 500
+        && data.defaultFullDistanceCm is number && data.defaultFullDistanceCm >= 0 && data.defaultFullDistanceCm < data.defaultEmptyDistanceCm
+        && data.updatedAt is timestamp
+        && (!('updatedBy' in data) || (data.updatedBy is string && data.updatedBy.size() <= 128));
+    }
+
+    // --- Collection Rules ---
+
+    // PII isolated: only owner or admin can get; only admin can list
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(userId) && isSignedIn() && isValidUser(incoming(), userId) && (
+        isAdmin() || (
+          isOwner(userId) &&
+          incoming().email == request.auth.token.email &&
+          incoming().role == 'PENDING' &&
+          incoming().isActive == false &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time
+        )
+      );
+      allow update: if isValidId(userId) && isSignedIn() && isValidUser(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() || (
+            isOwner(userId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'updatedAt'])
+          )
+        );
+      allow delete: if false;
+    }
+
+    // Non-PII staff directory for task assignment
+    match /staffDirectory/{userId} {
+      allow get: if isValidId(userId) && isActiveStaff();
+      allow list: if isActiveStaff();
+      allow create, update: if isValidId(userId) && isAdmin() && isValidStaffDirectory(incoming(), userId)
+        && incoming().updatedAt == request.time;
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    match /parks/{parkId} {
+      allow get: if isValidId(parkId) && isActiveStaff();
+      allow list: if isActiveStaff();
+      allow create: if isValidId(parkId) && isAdmin() && isValidPark(incoming(), parkId)
+        && incoming().createdAt == request.time;
+      allow update: if isValidId(parkId) && isAdmin() && isValidPark(incoming(), parkId)
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt;
+      allow delete: if false;
+    }
+
+    match /bins/{binId} {
+      allow get: if isValidId(binId) && isActiveStaff();
+      allow list: if isActiveStaff();
+      allow create: if isValidId(binId) && isAdmin() && isValidBin(incoming(), binId)
+        && exists(/databases/$(database)/documents/parks/$(incoming().parkId))
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(binId) && isValidBin(incoming(), binId)
+        && incoming().id == existing().id
+        && incoming().parkId == existing().parkId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() || (
+            isSupervisor() &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'currentFillPercentage', 'lastDistanceCm', 'lastReadingAt', 'lastReadingSource', 'updatedAt'])
+          )
+        );
+      allow delete: if false;
+    }
+
+    match /devices/{deviceId} {
+      allow get: if isValidId(deviceId) && isOperator();
+      allow list: if isOperator();
+      allow create: if isValidId(deviceId) && isAdmin() && isValidDevice(incoming(), deviceId)
+        && exists(/databases/$(database)/documents/bins/$(incoming().binId))
+        && exists(/databases/$(database)/documents/parks/$(incoming().parkId))
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(deviceId) && isAdmin() && isValidDevice(incoming(), deviceId)
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    // Server-only secret hashes: never readable or writable from clients
+    match /deviceCredentials/{deviceId} {
+      allow read, write: if false;
+    }
+
+    match /sensorReadings/{readingId} {
+      allow get: if isValidId(readingId) && isOperator();
+      allow list: if isOperator();
+      allow create: if isValidId(readingId) && isAdmin() && isValidSensorReading(incoming(), readingId)
+        && incoming().source == 'DEMO'
+        && exists(/databases/$(database)/documents/bins/$(incoming().binId))
+        && exists(/databases/$(database)/documents/devices/$(incoming().deviceId))
+        && incoming().receivedAt == request.time;
+      allow update, delete: if false;
+    }
+
+    match /alerts/{alertId} {
+      allow get: if isValidId(alertId) && isOperator();
+      allow list: if isOperator();
+      allow create: if isValidId(alertId) && isAdmin() && isValidAlert(incoming(), alertId)
+        && exists(/databases/$(database)/documents/bins/$(incoming().binId))
+        && incoming().createdAt == request.time;
+      allow update: if isValidId(alertId) && isValidAlert(incoming(), alertId)
+        && incoming().id == existing().id
+        && incoming().binId == existing().binId
+        && incoming().deviceId == existing().deviceId
+        && incoming().createdAt == existing().createdAt
+        && (
+          isAdmin() || (
+            isOperator() &&
+            existing().status != 'RESOLVED' &&
+            (
+              (incoming().status == 'ACKNOWLEDGED' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acknowledgedAt', 'acknowledgedBy'])) ||
+              (incoming().status == 'RESOLVED' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'resolvedAt', 'acknowledgedAt', 'acknowledgedBy']))
+            )
+          )
+        );
+      allow delete: if false;
+    }
+
+    // Contains PII (reporterName, reporterContact): restricted to Supervisor & Admin
+    match /citizenReports/{reportId} {
+      allow get: if isValidId(reportId) && isSupervisor();
+      allow list: if isSupervisor();
+      allow create: if false;
+      allow update: if isValidId(reportId) && isValidCitizenReport(incoming(), reportId)
+        && incoming().id == existing().id
+        && incoming().parkId == existing().parkId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() || (
+            isSupervisor() &&
+            existing().status != 'REJECTED' &&
+            existing().status != 'CLOSED' &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'status', 'priority', 'assignedTo', 'assignedTeam',
+              'internalNotes', 'statusHistory', 'resolvedAt', 'closedAt', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if false;
+    }
+
+    match /maintenanceTasks/{taskId} {
+      allow get: if isValidId(taskId) && (
+        isSupervisor() ||
+        (isWorker() && existing().assignedTo == request.auth.uid)
+      );
+      allow list: if isSupervisor() || (isWorker() && resource.data.assignedTo == request.auth.uid);
+      allow create: if isValidId(taskId) && isSupervisor() && isValidMaintenanceTask(incoming(), taskId)
+        && exists(/databases/$(database)/documents/parks/$(incoming().parkId))
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(taskId) && isValidMaintenanceTask(incoming(), taskId)
+        && incoming().id == existing().id
+        && incoming().parkId == existing().parkId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() || (
+            existing().status != 'COMPLETED' && existing().status != 'CANCELLED' && (
+              (isSupervisor() && incoming().diff(existing()).affectedKeys().hasOnly([
+                'assignedTo', 'assignedTeam', 'locationDescription', 'scheduledFor',
+                'priority', 'status', 'description', 'completionNotes', 'afterImageUrl', 'completedAt', 'updatedAt'
+              ])) ||
+              (isWorker() && existing().assignedTo == request.auth.uid && incoming().status in ['IN_PROGRESS', 'COMPLETED'] && incoming().diff(existing()).affectedKeys().hasOnly([
+                'status', 'completionNotes', 'afterImageUrl', 'completedAt', 'updatedAt'
+              ]))
+            )
+          )
+        );
+      allow delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow get: if isValidId(notificationId) && isActiveStaff();
+      allow list: if isActiveStaff();
+      allow create: if false;
+      allow update: if isValidId(notificationId) && isActiveStaff() && isValidNotification(incoming(), notificationId)
+        && incoming().id == existing().id
+        && incoming().type == existing().type
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['isRead', 'readBy', 'readAt']);
+      allow delete: if false;
+    }
+
+    match /systemConfig/{configId} {
+      allow get: if isValidId(configId) && isActiveStaff();
+      allow list: if isActiveStaff();
+      allow create, update: if isValidId(configId) && isAdmin() && isValidSystemConfig(incoming(), configId)
+        && incoming().updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    match /auditLogs/{logId} {
+      allow get: if isValidId(logId) && isAdmin();
+      allow list: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // Server-only sync outbox & local staff credentials
+    match /syncOutbox/{itemId} {
+      allow read, write: if false;
+    }
+
+    match /localStaffCredentials/{uid} {
+      allow read, write: if false;
+    }
+  }
+}

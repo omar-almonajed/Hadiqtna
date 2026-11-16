@@ -1,0 +1,1204 @@
+# HADIQTNA | حديقتنا
+## Complete Smart Park Management & IoT Monitoring Platform
+
+Act as a senior software architect, full-stack engineer, IoT engineer, UX/UI designer, database architect, and QA engineer.
+
+Your task is to BUILD a complete, functional, production-oriented MVP for a real smart public park management system called:
+
+**حديقتنا | Hadiqtna**
+
+This is not a landing-page-only project, not a static dashboard, and not a UI mockup.
+
+Build a real full-stack application with:
+- A professional Arabic RTL web interface.
+- A working backend.
+- A persistent database.
+- Real authentication and authorization.
+- A REST API for ESP32 hardware.
+- An ESP32 firmware project.
+- Real-time sensor monitoring.
+- Citizen reporting and maintenance workflows.
+- A demo mode for testing without physical hardware.
+- Complete documentation and testing.
+
+Do not just describe the implementation. Create the actual files, implement the features, run the application, test it, and fix errors.
+
+---
+
+# 1. PROJECT PURPOSE
+
+Hadiqtna is a smart park monitoring and management platform designed to improve public park cleanliness, maintenance, and operational response.
+
+The initial pilot must focus on:
+
+1. One public park.
+2. One smart waste bin.
+3. One ESP32 development board.
+4. One ultrasonic distance sensor.
+5. LED status indicators.
+6. Wi-Fi communication.
+7. A web dashboard that receives and displays real sensor data.
+8. Alerts when the bin reaches 80% capacity.
+9. Citizen reports about damaged playground equipment and park facilities.
+10. A simple maintenance workflow for staff.
+
+The system must support future expansion to multiple bins and parks without requiring a complete redesign.
+
+IMPORTANT:
+Do not pretend that the platform automatically cleans parks or physically repairs facilities. Workers perform collection and maintenance tasks. The system monitors, reports, organizes, and supports their work.
+
+---
+
+# 2. REQUIRED TECHNOLOGY STACK
+
+Use the following architecture.
+
+## Frontend
+- React.
+- TypeScript.
+- Vite.
+- Tailwind CSS.
+- React Router.
+- Lucide React icons.
+- Recharts for analytics.
+- Responsive component-based architecture.
+
+## Backend
+- Node.js.
+- TypeScript.
+- Express or an equivalent well-structured Node.js HTTP server.
+- REST API.
+- Server-side validation.
+- Centralized error handling.
+- Secure environment configuration.
+
+## Database and authentication
+Use Firebase integration supported by Google AI Studio:
+- Firebase Authentication.
+- Cloud Firestore.
+- Firebase Admin SDK on the server.
+- Firestore real-time listeners where appropriate.
+- Role-based authorization.
+
+Do not use browser-side database access to bypass backend authorization.
+
+Use the Firebase integration when prompted by Google AI Studio. Do not leave authentication or persistent storage as fake implementations.
+
+## Deployment
+Prepare the application for:
+- Google AI Studio preview.
+- Google Cloud Run deployment.
+- Firebase Firestore.
+- Future custom domain configuration.
+
+Keep the application compatible with the standard Google AI Studio full-stack project structure.
+
+---
+
+# 3. SYSTEM ARCHITECTURE
+
+Implement this actual architecture:
+
+ULTRASONIC SENSOR
+       |
+       v
+ESP32 MICROCONTROLLER
+       |
+       | Wi-Fi + HTTPS
+       v
+NODE.JS BACKEND / REST API
+       |
+       | Validation + Authentication
+       v
+CLOUD FIRESTORE
+       |
+       | Real-time updates
+       v
+REACT WEB DASHBOARD
+
+Additional workflows:
+
+CITIZEN -> REPORT SUBMISSION -> BACKEND -> DATABASE -> STAFF DASHBOARD -> MAINTENANCE TASK -> WORKER -> STATUS UPDATE
+
+The frontend must never pretend to receive hardware data directly.
+
+All hardware readings must pass through the backend.
+
+Create a clean separation between:
+- Frontend.
+- Backend.
+- Database.
+- Hardware communication.
+- Authentication.
+- Business logic.
+
+---
+
+# 4. DATABASE DESIGN
+
+Create a properly structured Firestore data model.
+
+Required collections:
+
+## users
+Fields:
+- uid
+- fullName
+- email
+- role
+- isActive
+- createdAt
+- updatedAt
+
+Roles:
+- ADMIN
+- SUPERVISOR
+- WORKER
+
+Citizens may submit reports through a restricted public reporting endpoint.
+
+Users must never be able to assign themselves an administrative role.
+
+## parks
+Fields:
+- id
+- name
+- description
+- location
+- status
+- createdAt
+
+Start with one demo park, but support multiple parks.
+
+## bins
+Fields:
+- id
+- parkId
+- name
+- binType
+- capacityLiters
+- status
+- currentFillPercentage
+- lastReadingAt
+- deviceId
+- locationDescription
+- createdAt
+- updatedAt
+
+## devices
+Fields:
+- id
+- name
+- deviceType
+- binId
+- parkId
+- connectionStatus
+- firmwareVersion
+- lastSeenAt
+- lastSignalStrength
+- isActive
+- createdAt
+
+Never store a raw device authentication token in a public document.
+
+## sensorReadings
+Fields:
+- id
+- deviceId
+- binId
+- distanceCm
+- fillPercentage
+- signalStrength
+- sequenceNumber
+- measuredAt
+- receivedAt
+- source
+- qualityStatus
+
+The source must distinguish:
+- HARDWARE
+- DEMO
+
+## alerts
+Fields:
+- id
+- binId
+- deviceId
+- type
+- severity
+- message
+- status
+- createdAt
+- acknowledgedAt
+- acknowledgedBy
+- resolvedAt
+
+Alert types:
+- BIN_80_PERCENT
+- BIN_FULL
+- DEVICE_OFFLINE
+- SENSOR_ERROR
+- SENSOR_READING_INVALID
+
+## citizenReports
+Fields:
+- id
+- parkId
+- reportType
+- title
+- description
+- locationDescription
+- imageUrl
+- reporterName
+- reporterContact
+- status
+- priority
+- createdAt
+- updatedAt
+
+Report types:
+- PLAYGROUND_DAMAGE
+- BROKEN_EQUIPMENT
+- PARK_CLEANLINESS
+- DAMAGED_BENCH
+- LIGHTING_PROBLEM
+- OTHER
+
+## maintenanceTasks
+Fields:
+- id
+- reportId
+- parkId
+- assignedTo
+- title
+- description
+- priority
+- status
+- createdAt
+- updatedAt
+- completedAt
+
+Task statuses:
+- PENDING
+- ASSIGNED
+- IN_PROGRESS
+- COMPLETED
+- CANCELLED
+
+## auditLogs
+Record important administrative actions without storing passwords, secrets, or raw authentication tokens.
+
+---
+
+# 5. REAL HARDWARE INTEGRATION
+
+This is one of the most important requirements.
+
+Build the hardware integration as a real backend-connected feature.
+
+Hardware target:
+
+- ESP32 development board.
+- Ultrasonic distance sensor.
+- LED status indicators.
+- Wi-Fi connection.
+- HTTPS communication.
+
+The exact ultrasonic sensor model has not yet been finalized.
+
+Therefore:
+- Make the sensor driver configurable.
+- Support a modular sensor interface.
+- Document compatibility considerations for HC-SR04 and JSN-SR04T.
+- Do not silently assume the sensor model.
+- Keep GPIO pins and calibration values configurable.
+- Explain electrical compatibility before connecting any sensor to ESP32.
+
+## 5.1 ESP32 firmware
+
+Create a separate firmware project:
+
+/firmware/esp32/
+
+Use PlatformIO with the Arduino framework.
+
+Create:
+- platformio.ini
+- src/main.cpp
+- include/config.h
+- include/sensor.h
+- src/sensor.cpp
+- include/network.h
+- src/network.cpp
+- include/api_client.h
+- src/api_client.cpp
+- README.md
+
+Firmware requirements:
+
+1. Connect ESP32 to Wi-Fi.
+2. Read ultrasonic sensor measurements.
+3. Filter invalid measurements.
+4. Take multiple samples and calculate a stable reading.
+5. Calculate bin fill percentage using configurable calibration values.
+6. Control LED status indicators.
+7. Send readings to the backend using HTTPS POST.
+8. Retry safely after network failure.
+9. Avoid sending duplicate readings unnecessarily.
+10. Include a unique device ID.
+11. Include a monotonically increasing sequence number.
+12. Synchronize time using NTP when available.
+13. Print useful diagnostic messages through Serial Monitor.
+14. Report connection errors.
+15. Never expose Wi-Fi passwords or device tokens in frontend code or source control.
+
+Use configurable values:
+
+WIFI_SSID
+WIFI_PASSWORD
+DEVICE_ID
+DEVICE_TOKEN
+API_BASE_URL
+SENSOR_TRIGGER_PIN
+SENSOR_ECHO_PIN
+LED_GREEN_PIN
+LED_YELLOW_PIN
+LED_RED_PIN
+EMPTY_DISTANCE_CM
+FULL_DISTANCE_CM
+READING_INTERVAL_SECONDS
+
+Do not invent actual sensor calibration values.
+
+Provide safe example placeholders and explain how to calibrate the empty and full bin distances.
+
+### Sensor calculation
+
+The sensor measures the distance from the sensor to the waste surface.
+
+Calculate:
+
+fillPercentage = ((emptyDistance - measuredDistance) / (emptyDistance - fullDistance)) * 100
+
+Clamp the final percentage between 0 and 100.
+
+Reject readings that are:
+- Negative.
+- Outside the configured sensor range.
+- Physically impossible for the configured bin.
+- Missing or clearly invalid.
+
+Apply a configurable smoothing method to avoid unstable readings.
+
+The backend must independently validate readings and calculate or verify the fill percentage using the bin's calibration configuration.
+
+### LED behavior
+
+- Green: 0% to 49%.
+- Yellow: 50% to 79%.
+- Red: 80% to 100%.
+
+These thresholds must be configurable.
+
+---
+
+# 6. SECURE IOT REST API
+
+Implement real backend endpoints.
+
+## Device endpoint
+
+POST /api/iot/readings
+
+Expected payload:
+
+{
+  "deviceId": "BIN-ESP32-001",
+  "sequenceNumber": 125,
+  "distanceCm": 24.5,
+  "signalStrength": -61,
+  "measuredAt": "2026-11-14T12:00:00.000Z"
+}
+
+Authentication:
+- Use a device-specific token.
+- Send it using an Authorization Bearer header.
+- Verify it on the backend.
+- Store only a secure hash of the device token.
+- Never expose device tokens to the browser.
+- Allow administrators to revoke or rotate device credentials.
+- Use HTTPS in deployed environments.
+
+Backend processing:
+
+1. Authenticate the device.
+2. Confirm that it is active.
+3. Validate the payload.
+4. Check sequence number and reject replayed or duplicate readings.
+5. Retrieve the bin configuration.
+6. Calculate the fill percentage.
+7. Store the sensor reading.
+8. Update the bin's latest state.
+9. Update the device's last-seen timestamp.
+10. Evaluate alert thresholds.
+11. Create or update alerts without generating duplicates.
+12. Return a clear JSON response.
+
+Example successful response:
+
+{
+  "success": true,
+  "deviceId": "BIN-ESP32-001",
+  "fillPercentage": 82,
+  "alertTriggered": true,
+  "receivedAt": "server-generated-timestamp"
+}
+
+Other endpoints:
+
+GET /api/iot/devices
+GET /api/iot/devices/:deviceId
+GET /api/iot/bins
+GET /api/iot/bins/:binId
+GET /api/iot/bins/:binId/readings
+GET /api/iot/alerts
+POST /api/iot/devices/:deviceId/revoke
+POST /api/iot/devices/:deviceId/rotate-token
+
+Also implement:
+
+GET /api/health
+
+The health endpoint must report backend availability and database connectivity without exposing sensitive configuration.
+
+Add:
+- Input validation.
+- Rate limiting.
+- Secure error handling.
+- CORS configuration.
+- Request logging.
+- Device authentication.
+- Duplicate reading protection.
+- Server-side timestamps.
+
+Never return secrets in API responses.
+
+---
+
+# 7. ALERT ENGINE
+
+Implement a real alert service.
+
+Rules:
+
+- 0–79%: normal.
+- 80–94%: warning.
+- 95–99%: critical.
+- 100%: full.
+
+Create an alert when the bin crosses 80%.
+
+Avoid creating a new alert for every reading while the bin remains above the threshold.
+
+Support:
+- Acknowledging an alert.
+- Resolving an alert.
+- Recording who acknowledged it.
+- Recording when it was resolved.
+- Reopening an alert if the bin is emptied and later reaches the threshold again.
+
+Device offline detection:
+
+- Make the expected reporting interval configurable.
+- Mark the device OFFLINE if no valid reading arrives within the configured timeout.
+- Show the last successful communication time.
+- Do not confuse a device with no readings yet with a device that has recently gone offline.
+
+When the bin is emptied:
+- Detect or allow staff to record the emptying event.
+- Record the action and time.
+- Update the bin state only when supported by a valid reading or an authorized manual operation.
+- Preserve historical readings.
+
+---
+
+# 8. DEMO MODE AND REAL HARDWARE MODE
+
+The application must support two operating modes.
+
+## DEMO MODE
+
+Used when physical hardware is unavailable.
+
+Features:
+- Simulate bin fill percentage.
+- Simulate incoming sensor readings.
+- Simulate device online/offline status.
+- Trigger warning and critical alerts.
+- Test the full workflow.
+- Allow the user to change the simulated fill level.
+
+All demo data must be visibly labeled DEMO.
+
+Demo mode must not create fake hardware authentication or claim that a physical ESP32 is connected.
+
+## HARDWARE MODE
+
+Used when the real ESP32 is configured.
+
+Features:
+- Receive readings from the real backend API.
+- Display real connection status based on received data.
+- Show actual last communication time.
+- Show actual sensor measurements.
+- Show real alerts generated by the backend.
+- Display the data source as HARDWARE.
+
+Create a clear mode selector for administrators.
+
+Switching modes must not corrupt historical readings.
+
+Never mix demo and hardware readings without labeling their source.
+
+---
+
+# 9. PROFESSIONAL WEBSITE DESIGN
+
+Create a polished, modern, high-quality interface suitable for demonstrating the project to municipalities, public-sector decision makers, and technical reviewers.
+
+Visual direction:
+
+- Professional smart-city dashboard.
+- Modern environmental technology aesthetic.
+- Deep forest green.
+- Emerald green.
+- Warm off-white backgrounds.
+- Neutral gray surfaces.
+- Clear contrast.
+- Subtle shadows.
+- Consistent spacing.
+- Clean cards.
+- Elegant charts.
+- Minimal unnecessary decoration.
+
+Avoid:
+- Generic AI-generated dashboard appearance.
+- Excessive gradients.
+- Excessive rounded cards.
+- Oversized headings.
+- Fake statistics presented as real.
+- Nonfunctional buttons.
+- Empty pages.
+- Unnecessary animations.
+
+## Language and RTL
+
+The default interface must be Arabic.
+
+Use:
+- Arabic labels.
+- Proper RTL layout.
+- Correct alignment.
+- Arabic date and number formatting where appropriate.
+- Clear Arabic typography.
+
+Prepare an English language option if feasible.
+
+Make the interface responsive for:
+- Desktop.
+- Tablet.
+- Mobile.
+
+---
+
+# 10. REQUIRED WEBSITE PAGES
+
+Build the following pages as real working routes.
+
+## A. Public landing page
+
+Route: /
+
+Include:
+- Hadiqtna branding.
+- Project introduction.
+- Main features.
+- How the smart bin works.
+- Environmental impact explanation.
+- How citizens can report problems.
+- Call to action.
+- Login link.
+- Citizen reporting link.
+
+## B. Login page
+
+Route: /login
+
+Implement real authentication using Firebase Authentication.
+
+Include:
+- Google Sign-In.
+- Session handling.
+- Logout.
+- Protected routes.
+- User role verification.
+- Unauthorized access handling.
+
+Do not create fake authentication.
+
+## C. Main dashboard
+
+Route: /dashboard
+
+Show:
+- Total parks.
+- Total smart bins.
+- Online devices.
+- Offline devices.
+- Current average bin fill level.
+- Active alerts.
+- Open citizen reports.
+- Pending maintenance tasks.
+- Recent sensor readings.
+- Recent activities.
+
+Use actual database data.
+
+If demo mode is enabled, clearly indicate that the displayed information is simulated.
+
+## D. Smart bin monitoring
+
+Route: /bins
+
+Show:
+- Bin list.
+- Bin status.
+- Fill percentage.
+- Device connection status.
+- Last reading.
+- Alert status.
+- Search and filters.
+
+## E. Bin details
+
+Route: /bins/:binId
+
+Show:
+- Current fill percentage.
+- Distance measurement.
+- Device information.
+- Historical fill chart.
+- Reading history.
+- Active alerts.
+- Last communication.
+- Maintenance history.
+
+## F. IoT device management
+
+Route: /devices
+
+Show:
+- Device ID.
+- Device type.
+- Associated bin.
+- Connection state.
+- Firmware version.
+- Last seen.
+- Signal strength.
+- Device configuration.
+
+Provide administrator actions:
+- Register device.
+- Associate device with bin.
+- Activate/deactivate device.
+- Revoke device credentials.
+- Rotate device token.
+- View connection diagnostics.
+
+Never display the full device secret after initial provisioning.
+
+## G. Live monitoring
+
+Route: /monitoring
+
+Build a dedicated live-monitoring screen.
+
+Include:
+- Live bin fill level.
+- Connection indicator.
+- Last received reading.
+- Real-time chart.
+- Alert panel.
+- Device status.
+- Data source indicator.
+
+Use real-time Firestore subscriptions for updates.
+
+Do not use fake intervals to simulate real hardware in HARDWARE mode.
+
+## H. Alerts
+
+Route: /alerts
+
+Include:
+- Active alerts.
+- Warning and critical levels.
+- Alert history.
+- Acknowledge action.
+- Resolve action.
+- Filters.
+- Search.
+
+## I. Citizen portal
+
+Route: /citizen
+
+Allow visitors to:
+- Submit a park problem report.
+- Choose report category.
+- Enter a description.
+- Specify the location inside the park.
+- Optionally upload a photo.
+- Submit contact information.
+
+Show a clear success or error response.
+
+Validate all submissions server-side.
+
+Add rate limiting and safe file upload validation.
+
+## J. Reports management
+
+Route: /reports
+
+Allow staff to:
+- View reports.
+- Filter by status.
+- View details.
+- Change priority.
+- Accept or reject reports.
+- Convert a report into a maintenance task.
+
+## K. Maintenance management
+
+Route: /maintenance
+
+Allow supervisors to:
+- Create maintenance tasks.
+- Assign workers.
+- Set priority.
+- Track status.
+- Record completion.
+- View task history.
+
+Workers can:
+- View assigned tasks.
+- Mark tasks as in progress.
+- Mark tasks as completed.
+- Add completion notes.
+
+## L. Parks management
+
+Route: /parks
+
+Include:
+- Park information.
+- Park status.
+- Associated bins.
+- Reports.
+- Maintenance activity.
+
+Start with one pilot park.
+
+## M. Analytics
+
+Route: /analytics
+
+Provide real analytics based on stored records:
+
+- Fill level trends.
+- Number of alerts.
+- Device uptime.
+- Number of citizen reports.
+- Maintenance completion rate.
+- Average response time, only when sufficient timestamps exist.
+- Historical comparison.
+
+Never invent historical measurements.
+
+If data is insufficient, show an informative empty state.
+
+## N. Settings
+
+Route: /settings
+
+Include:
+- User profile.
+- System configuration.
+- Alert thresholds.
+- Sensor calibration settings.
+- Device reporting interval.
+- Demo/hardware mode.
+- Park configuration.
+
+Restrict sensitive settings to authorized administrators.
+
+---
+
+# 11. USER ROLES AND PERMISSIONS
+
+Implement real role-based access control.
+
+ADMIN:
+- Full system administration.
+- Manage users.
+- Manage parks and bins.
+- Manage devices.
+- Configure system settings.
+- View analytics.
+- Manage reports and maintenance.
+
+SUPERVISOR:
+- View dashboards.
+- Monitor devices and bins.
+- Manage alerts.
+- Manage reports.
+- Assign maintenance tasks.
+- Review worker progress.
+
+WORKER:
+- View assigned maintenance tasks.
+- Update task status.
+- Add completion notes.
+- View relevant park information.
+
+CITIZEN:
+- Submit public reports.
+- Receive a report reference number.
+- Cannot access internal dashboards.
+
+All role checks must be enforced on the backend, not only hidden in the frontend.
+
+Use secure Firestore rules and test unauthorized access.
+
+---
+
+# 12. REAL-TIME DATA
+
+Use real-time updates for:
+
+- Current bin fill percentage.
+- Device connection status.
+- New sensor readings.
+- New alerts.
+- Citizen report updates.
+- Maintenance task updates.
+
+Use Firestore listeners where appropriate.
+
+Avoid excessive database reads.
+
+Clean up subscriptions when components unmount.
+
+Show:
+- Loading state.
+- Connection state.
+- Empty state.
+- Error state.
+- Last updated time.
+
+---
+
+# 13. SECURITY REQUIREMENTS
+
+Security is mandatory.
+
+Implement:
+
+1. Firebase Authentication for staff.
+2. Backend authorization checks.
+3. Role-based access control.
+4. Secure device tokens.
+5. Hashed device-token storage.
+6. Input validation.
+7. Rate limiting.
+8. CORS restrictions.
+9. Safe file uploads.
+10. Firestore default-deny security rules.
+11. Environment variable configuration.
+12. No secrets in frontend code.
+13. No service account credentials in the repository.
+14. Audit logs for sensitive operations.
+15. Protection against replayed device readings.
+
+Never trust:
+- Frontend-supplied roles.
+- Frontend-supplied fill percentages.
+- Unauthenticated hardware requests.
+- Arbitrary file uploads.
+- Client timestamps as authoritative server timestamps.
+
+The backend must be the trusted authority for hardware data and privileged actions.
+
+---
+
+# 14. PROJECT STRUCTURE
+
+Keep a clean and maintainable project structure.
+
+Use a structure similar to:
+
+src/
+  components/
+    common/
+    dashboard/
+    bins/
+    devices/
+    monitoring/
+    alerts/
+    reports/
+    maintenance/
+    charts/
+  pages/
+  layouts/
+  hooks/
+  contexts/
+  services/
+  types/
+  utils/
+  routes/
+
+server/
+  routes/
+  controllers/
+  services/
+  middleware/
+  validators/
+  repositories/
+  config/
+  utils/
+
+firmware/
+  esp32/
+    include/
+    src/
+
+docs/
+  architecture.md
+  database-schema.md
+  api-documentation.md
+  hardware-wiring.md
+  firmware-setup.md
+  deployment-guide.md
+  testing-guide.md
+  troubleshooting.md
+
+tests/
+  frontend/
+  backend/
+  integration/
+
+Do not put the entire application in one file.
+
+Use reusable components and services.
+
+---
+
+# 15. TESTING REQUIREMENTS
+
+Do not finish after generating the UI.
+
+Run and fix:
+
+## Frontend tests
+- Route navigation.
+- Form validation.
+- Authentication states.
+- Role-based visibility.
+- Dashboard data rendering.
+- Error states.
+
+## Backend tests
+- API health.
+- Device authentication.
+- Invalid device token rejection.
+- Invalid payload rejection.
+- Valid reading acceptance.
+- Duplicate sequence rejection.
+- Fill percentage calculation.
+- Alert generation at 80%.
+- Alert deduplication.
+- Unauthorized access rejection.
+
+## Integration tests
+- Submit a sensor reading.
+- Verify database persistence.
+- Verify bin state update.
+- Verify alert creation.
+- Verify frontend receives the update.
+
+## Demo workflow test
+
+Create a repeatable demonstration:
+
+1. Open the dashboard.
+2. Select DEMO mode.
+3. Set bin fill level to 45%.
+4. Verify normal status.
+5. Set it to 79%.
+6. Verify warning threshold has not yet been crossed.
+7. Set it to 80%.
+8. Verify a warning alert is generated.
+9. Set it to 95%.
+10. Verify critical status.
+11. Submit a citizen report about broken playground equipment.
+12. Open the report in staff management.
+13. Convert it into a maintenance task.
+14. Assign it to a worker.
+15. Update the task status.
+16. Verify the dashboard reflects the changes.
+
+## Hardware integration test
+
+Provide a documented procedure to test a physical ESP32:
+
+1. Configure Wi-Fi.
+2. Configure device ID.
+3. Provision a device token.
+4. Configure the API URL.
+5. Upload firmware.
+6. Open Serial Monitor.
+7. Verify Wi-Fi connection.
+8. Verify sensor measurements.
+9. Send a test reading.
+10. Confirm that the backend accepts it.
+11. Confirm that Firestore stores it.
+12. Confirm that the dashboard displays it.
+13. Move an object closer to the sensor.
+14. Verify that the fill percentage changes.
+15. Reach the 80% threshold.
+16. Confirm that the real alert is generated.
+
+Do not claim this physical test passed unless it was actually performed.
+
+---
+
+# 16. REQUIRED DOCUMENTATION
+
+Create complete documentation in Arabic.
+
+The documentation must explain:
+
+1. What the system does.
+2. How the frontend works.
+3. How the backend works.
+4. How Firestore is structured.
+5. How to create an administrator account safely.
+6. How to register an ESP32 device.
+7. How to obtain and configure device credentials.
+8. How to configure Wi-Fi.
+9. How to connect the ultrasonic sensor.
+10. How to configure GPIO pins.
+11. How to calibrate the sensor.
+12. How to upload firmware.
+13. How to test the API.
+14. How to activate HARDWARE mode.
+15. How to deploy the application.
+16. How to troubleshoot connection problems.
+17. How to revoke a compromised device token.
+
+Include example API requests and responses.
+
+Include a hardware wiring diagram or a clearly labeled wiring table.
+
+Do not assume the sensor model has been finalized.
+
+Explain the electrical requirements for ESP32 GPIO compatibility, especially when using a sensor with a 5V Echo output.
+
+---
+
+# 17. DEVELOPMENT WORKFLOW
+
+Work in controlled implementation stages, but continue until the entire application is implemented.
+
+STAGE 1:
+Inspect the project and create the architecture.
+
+STAGE 2:
+Build the visual system, layouts, navigation, and all required pages.
+
+STAGE 3:
+Implement Firebase Authentication and Firestore.
+
+STAGE 4:
+Implement backend APIs and authorization.
+
+STAGE 5:
+Implement IoT device authentication and reading ingestion.
+
+STAGE 6:
+Implement alert generation and real-time monitoring.
+
+STAGE 7:
+Implement citizen reports and maintenance management.
+
+STAGE 8:
+Generate ESP32 firmware and hardware documentation.
+
+STAGE 9:
+Implement DEMO mode and test workflows.
+
+STAGE 10:
+Run tests, fix errors, and verify the entire application.
+
+Do not stop after any stage simply to report progress.
+
+If a Firebase setup confirmation is required, clearly explain why and wait for the user's approval.
+
+If a required secret or hardware configuration is missing, create a safe configuration placeholder and document exactly what the user must provide.
+
+Never invent credentials or pretend that external services have been configured.
+
+---
+
+# 18. FINAL ACCEPTANCE CRITERIA
+
+The project is not complete until:
+
+- All required pages exist.
+- All navigation works.
+- The interface is fully responsive.
+- Arabic RTL works correctly.
+- Authentication works.
+- User roles are enforced by the backend.
+- Database records persist.
+- The backend API runs.
+- The IoT endpoint accepts authenticated device readings.
+- Invalid device requests are rejected.
+- Readings update the bin state.
+- Alerts are generated correctly at 80%.
+- Real-time dashboard updates work.
+- Citizen reports persist.
+- Maintenance workflows work.
+- Demo mode works independently.
+- Hardware mode uses actual backend readings.
+- ESP32 firmware source exists.
+- Documentation is complete.
+- Automated tests run successfully.
+- Build errors are resolved.
+
+At the end, provide a factual implementation report containing:
+
+1. Features actually implemented.
+2. Files and architecture created.
+3. Firebase services configured.
+4. API endpoints implemented.
+5. Tests actually executed and their results.
+6. Deployment status.
+7. Hardware features ready for testing.
+8. Hardware features not yet physically verified.
+9. Exact configuration still required from the user.
+
+Do not claim production readiness without security review, deployment verification, and physical hardware testing.
+
+**FINAL INSTRUCTION: Build the actual complete application now. Prioritize functional correctness, secure architecture, real data persistence, and future ESP32 integration over superficial visual complexity.**

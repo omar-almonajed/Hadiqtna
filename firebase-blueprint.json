@@ -1,0 +1,350 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Authenticated staff user account with PII and role assignment.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fullName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "role": { "type": "string", "enum": ["ADMIN", "SUPERVISOR", "OPERATOR", "MAINTENANCE", "WORKER", "PENDING"] },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "fullName", "email", "role", "isActive", "createdAt", "updatedAt"]
+    },
+    "StaffDirectoryEntry": {
+      "title": "StaffDirectoryEntry",
+      "description": "Non-PII staff summary used by supervisors to assign maintenance tasks.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fullName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "role": { "type": "string", "enum": ["ADMIN", "SUPERVISOR", "OPERATOR", "MAINTENANCE", "WORKER", "PENDING"] },
+        "isActive": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "fullName", "role", "isActive", "updatedAt"]
+    },
+    "Park": {
+      "title": "Park",
+      "description": "Public park monitored by Hadiqtna.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "location": { "type": "string", "minLength": 2, "maxLength": 240 },
+        "status": { "type": "string", "enum": ["ACTIVE", "MAINTENANCE", "INACTIVE"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "description", "location", "status", "createdAt"]
+    },
+    "Bin": {
+      "title": "Bin",
+      "description": "Smart waste bin monitored via ultrasonic sensor.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "parkId": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "binType": { "type": "string", "enum": ["GENERAL", "RECYCLABLE", "ORGANIC"] },
+        "capacityLiters": { "type": "number" },
+        "status": { "type": "string", "enum": ["NORMAL", "WARNING", "CRITICAL", "FULL", "OFFLINE", "MAINTENANCE"] },
+        "currentFillPercentage": { "type": "number" },
+        "lastDistanceCm": { "type": "number" },
+        "emptyDistanceCm": { "type": "number" },
+        "fullDistanceCm": { "type": "number" },
+        "lastReadingAt": { "type": "string", "format": "date-time" },
+        "lastReadingSource": { "type": "string", "enum": ["HARDWARE", "DEMO"] },
+        "deviceId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "locationDescription": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "parkId", "name", "binType", "capacityLiters", "status", "currentFillPercentage", "emptyDistanceCm", "fullDistanceCm", "locationDescription", "createdAt", "updatedAt"]
+    },
+    "Device": {
+      "title": "Device",
+      "description": "ESP32 IoT node attached to a smart bin (never stores raw or hashed secrets).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "deviceType": { "type": "string", "maxLength": 80 },
+        "sensorModel": { "type": "string", "maxLength": 80 },
+        "binId": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "parkId": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "connectionStatus": { "type": "string", "enum": ["ONLINE", "OFFLINE", "NEVER_CONNECTED"] },
+        "firmwareVersion": { "type": "string", "maxLength": 40 },
+        "lastSeenAt": { "type": "string", "format": "date-time" },
+        "lastSignalStrength": { "type": "number" },
+        "lastSequenceNumber": { "type": "number" },
+        "reportingIntervalSeconds": { "type": "number" },
+        "queuedReadingsCount": { "type": "number" },
+        "overflowDroppedCount": { "type": "number" },
+        "lastPowerResetReason": { "type": "string", "maxLength": 64 },
+        "networkType": { "type": "string", "maxLength": 64 },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "deviceType", "binId", "parkId", "connectionStatus", "firmwareVersion", "isActive", "createdAt", "updatedAt"]
+    },
+    "DeviceCredential": {
+      "title": "DeviceCredential",
+      "description": "Server-only hashed credential metadata for IoT devices.",
+      "type": "object",
+      "properties": {
+        "deviceId": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "tokenHash": { "type": "string", "minLength": 64, "maxLength": 128 },
+        "tokenPrefix": { "type": "string", "maxLength": 16 },
+        "isRevoked": { "type": "boolean" },
+        "rotatedAt": { "type": "string", "format": "date-time" },
+        "revokedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["deviceId", "tokenHash", "tokenPrefix", "isRevoked", "rotatedAt"]
+    },
+    "SensorReading": {
+      "title": "SensorReading",
+      "description": "Time-series ultrasonic measurement from hardware or demo simulation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "deviceId": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "binId": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "distanceCm": { "type": "number" },
+        "fillPercentage": { "type": "number" },
+        "signalStrength": { "type": "number" },
+        "sequenceNumber": { "type": "number" },
+        "measuredAt": { "type": "string", "format": "date-time" },
+        "receivedAt": { "type": "string", "format": "date-time" },
+        "source": { "type": "string", "enum": ["HARDWARE", "DEMO"] },
+        "qualityStatus": { "type": "string", "enum": ["VALID", "FILTERED", "OUT_OF_RANGE", "INVALID"] }
+      },
+      "required": ["id", "deviceId", "binId", "distanceCm", "fillPercentage", "signalStrength", "sequenceNumber", "measuredAt", "receivedAt", "source", "qualityStatus"]
+    },
+    "Alert": {
+      "title": "Alert",
+      "description": "Operational alert triggered by bin thresholds or device offline checks.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "binId": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "deviceId": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "type": { "type": "string", "enum": ["BIN_80_PERCENT", "BIN_FULL", "DEVICE_OFFLINE", "SENSOR_ERROR", "SENSOR_READING_INVALID"] },
+        "severity": { "type": "string", "enum": ["WARNING", "CRITICAL", "INFO"] },
+        "message": { "type": "string", "minLength": 3, "maxLength": 400 },
+        "status": { "type": "string", "enum": ["ACTIVE", "ACKNOWLEDGED", "RESOLVED"] },
+        "source": { "type": "string", "enum": ["HARDWARE", "DEMO"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "acknowledgedAt": { "type": "string", "format": "date-time" },
+        "acknowledgedBy": { "type": "string", "maxLength": 128 },
+        "resolvedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "binId", "deviceId", "type", "severity", "message", "status", "createdAt"]
+    },
+    "CitizenReport": {
+      "title": "CitizenReport",
+      "description": "Public report submitted by park visitors.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "parkId": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "reportType": { "type": "string", "enum": ["FULL_BIN", "PLAYGROUND_DAMAGE", "RESTROOM_ISSUE", "BROKEN_EQUIPMENT", "PARK_CLEANLINESS", "DAMAGED_BENCH", "LIGHTING_PROBLEM", "OTHER"] },
+        "title": { "type": "string", "minLength": 3, "maxLength": 160 },
+        "description": { "type": "string", "minLength": 5, "maxLength": 2000 },
+        "locationDescription": { "type": "string", "minLength": 2, "maxLength": 300 },
+        "imageUrl": { "type": "string", "maxLength": 500 },
+        "imageUrls": { "type": "array", "items": { "type": "string", "maxLength": 500 } },
+        "trackingCode": { "type": "string", "maxLength": 16 },
+        "reporterName": { "type": "string", "maxLength": 120 },
+        "reporterContact": { "type": "string", "maxLength": 160 },
+        "status": { "type": "string", "enum": ["NEW", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "CONVERTED_TO_TASK", "IN_PROGRESS", "RESOLVED", "CLOSED"] },
+        "priority": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"] },
+        "assignedTo": { "type": "string", "maxLength": 128 },
+        "assignedTeam": { "type": "string", "maxLength": 120 },
+        "internalNotes": { "type": "string", "maxLength": 2000 },
+        "statusHistory": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "resolvedAt": { "type": "string", "format": "date-time" },
+        "closedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "parkId", "reportType", "title", "description", "locationDescription", "status", "priority", "createdAt", "updatedAt"]
+    },
+    "MaintenanceTask": {
+      "title": "MaintenanceTask",
+      "description": "Operational maintenance task assigned to park workers.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "reportId": { "type": "string", "maxLength": 128 },
+        "parkId": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "binId": { "type": "string", "maxLength": 128 },
+        "assignedTo": { "type": "string", "maxLength": 128 },
+        "assignedTeam": { "type": "string", "maxLength": 120 },
+        "locationDescription": { "type": "string", "maxLength": 300 },
+        "title": { "type": "string", "minLength": 3, "maxLength": 160 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "completionNotes": { "type": "string", "maxLength": 1000 },
+        "afterImageUrl": { "type": "string", "maxLength": 500 },
+        "scheduledFor": { "type": "string", "format": "date-time" },
+        "priority": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"] },
+        "status": { "type": "string", "enum": ["PENDING", "ASSIGNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "parkId", "title", "description", "priority", "status", "createdAt", "updatedAt"]
+    },
+    "SystemConfig": {
+      "title": "SystemConfig",
+      "description": "Global platform configuration including operating mode, thresholds, and calibration defaults.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "operatingMode": { "type": "string", "enum": ["DEMO", "HARDWARE"] },
+        "warningThresholdPercent": { "type": "number" },
+        "criticalThresholdPercent": { "type": "number" },
+        "defaultReportingIntervalSeconds": { "type": "number" },
+        "offlineTimeoutSeconds": { "type": "number" },
+        "defaultEmptyDistanceCm": { "type": "number" },
+        "defaultFullDistanceCm": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "operatingMode", "warningThresholdPercent", "criticalThresholdPercent", "defaultReportingIntervalSeconds", "offlineTimeoutSeconds", "defaultEmptyDistanceCm", "defaultFullDistanceCm", "updatedAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable administrative audit trail without secrets.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "actorUid": { "type": "string", "maxLength": 128 },
+        "actorEmail": { "type": "string", "maxLength": 200 },
+        "action": { "type": "string", "maxLength": 100 },
+        "targetCollection": { "type": "string", "maxLength": 80 },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "summary": { "type": "string", "maxLength": 400 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "actorUid", "action", "targetCollection", "targetId", "summary", "createdAt"]
+    },
+    "SyncOutboxItem": {
+      "title": "SyncOutboxItem",
+      "description": "Server-only store-and-forward queue item for local park/municipality server sync.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "deviceId": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "sequenceNumber": { "type": "number" },
+        "distanceCm": { "type": "number" },
+        "signalStrength": { "type": "number" },
+        "measuredAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "syncStatus": { "type": "string", "enum": ["PENDING", "SYNCED", "CONFLICT_DUPLICATE"] },
+        "attempts": { "type": "number" },
+        "lastError": { "type": "string", "maxLength": 400 }
+      },
+      "required": ["id", "deviceId", "sequenceNumber", "distanceCm", "signalStrength", "measuredAt", "createdAt", "syncStatus", "attempts"]
+    },
+    "LocalStaffCredential": {
+      "title": "LocalStaffCredential",
+      "description": "Server-only scrypt password hash for optional local-network staff authentication.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "passwordHash": { "type": "string", "maxLength": 256 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "passwordHash", "updatedAt"]
+    },
+    "StaffNotification": {
+      "title": "StaffNotification",
+      "description": "Operational notifications for reports, bin levels, offline sensors, and maintenance tasks.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "type": { "type": "string", "enum": ["NEW_REPORT", "BIN_HIGH_FILL", "SENSOR_OFFLINE", "TASK_ASSIGNED", "REPORT_STATUS_UPDATED"] },
+        "title": { "type": "string", "minLength": 2, "maxLength": 180 },
+        "message": { "type": "string", "minLength": 2, "maxLength": 500 },
+        "targetRoles": { "type": "array", "items": { "type": "string" } },
+        "targetUid": { "type": "string", "maxLength": 128 },
+        "relatedCollection": { "type": "string", "maxLength": 80 },
+        "relatedId": { "type": "string", "maxLength": 128 },
+        "isRead": { "type": "boolean" },
+        "readBy": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "readAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "type", "title", "message", "targetRoles", "isRead", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Private user profiles with PII and RBAC roles."
+    },
+    "/staffDirectory/{userId}": {
+      "schema": { "$ref": "#/entities/StaffDirectoryEntry" },
+      "description": "Non-PII staff names and roles for task assignment."
+    },
+    "/parks/{parkId}": {
+      "schema": { "$ref": "#/entities/Park" },
+      "description": "Monitored public parks."
+    },
+    "/bins/{binId}": {
+      "schema": { "$ref": "#/entities/Bin" },
+      "description": "Smart waste bins and their current fill state."
+    },
+    "/devices/{deviceId}": {
+      "schema": { "$ref": "#/entities/Device" },
+      "description": "ESP32 device metadata (no credentials)."
+    },
+    "/deviceCredentials/{deviceId}": {
+      "schema": { "$ref": "#/entities/DeviceCredential" },
+      "description": "Server-only hashed device tokens."
+    },
+    "/sensorReadings/{readingId}": {
+      "schema": { "$ref": "#/entities/SensorReading" },
+      "description": "Historical and real-time sensor readings tagged HARDWARE or DEMO."
+    },
+    "/alerts/{alertId}": {
+      "schema": { "$ref": "#/entities/Alert" },
+      "description": "Threshold and offline alerts."
+    },
+    "/citizenReports/{reportId}": {
+      "schema": { "$ref": "#/entities/CitizenReport" },
+      "description": "Visitor-submitted park maintenance and cleanliness reports."
+    },
+    "/maintenanceTasks/{taskId}": {
+      "schema": { "$ref": "#/entities/MaintenanceTask" },
+      "description": "Staff maintenance workflow tasks."
+    },
+    "/systemConfig/{configId}": {
+      "schema": { "$ref": "#/entities/SystemConfig" },
+      "description": "Global platform configuration and operating mode."
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Immutable administrative audit logs."
+    },
+    "/syncOutbox/{itemId}": {
+      "schema": { "$ref": "#/entities/SyncOutboxItem" },
+      "description": "Server-only store-and-forward sync outbox."
+    },
+    "/localStaffCredentials/{uid}": {
+      "schema": { "$ref": "#/entities/LocalStaffCredential" },
+      "description": "Server-only scrypt credentials for local staff fallback login."
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/StaffNotification" },
+      "description": "Real-time and persistent staff notifications."
+    }
+  }
+}

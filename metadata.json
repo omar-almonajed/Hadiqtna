@@ -1,0 +1,8 @@
+{
+  "name": "حديقتنا | Hadiqtna",
+  "description": "منصة ذكية لمراقبة وإدارة الحدائق العامة والحاويات الذكية وبلاغات المواطنين والصيانة عبر إنترنت الأشياء.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
