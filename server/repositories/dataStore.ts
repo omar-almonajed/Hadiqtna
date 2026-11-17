@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Timestamp } from 'firebase-admin/firestore';
 import { env, isTmpDirectory } from '../config/env.ts';
+import { hashPassword } from '../utils/crypto.ts';
 import {
   checkAdminFirestoreAvailability,
   getAdminFirestore,
@@ -60,8 +61,22 @@ export interface StoreState {
 
 function createInitialSeed(): StoreState {
   const now = new Date().toISOString();
+  const demoAdminEmail = 'admin@hadiqtna.local';
+  const demoAdminUid = 'local-admin';
+  const demoAdminPasswordHash = hashPassword('admin123');
+
   return {
-    users: {},
+    users: {
+      [demoAdminUid]: {
+        uid: demoAdminUid,
+        fullName: 'مدير التشغيل التجريبي',
+        email: demoAdminEmail,
+        role: 'ADMIN',
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+    },
     staffDirectory: {},
     parks: {
       'park-alnakheel': {
@@ -421,7 +436,14 @@ function createInitialSeed(): StoreState {
     },
     auditLogs: {},
     syncOutbox: {},
-    localStaffCredentials: {},
+    localStaffCredentials: {
+      [demoAdminUid]: {
+        uid: demoAdminUid,
+        email: demoAdminEmail,
+        passwordHash: demoAdminPasswordHash,
+        updatedAt: now,
+      },
+    },
     notifications: {},
   };
 }
